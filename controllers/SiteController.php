@@ -138,73 +138,84 @@ class SiteController extends Controller
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
 
-        $url = Yii::$app->request->post('url');
+        try {
+            $url = Yii::$app->request->post('url');
 
-        // 1. Vérification de la validité de l’URL
-        if (!filter_var($url, FILTER_VALIDATE_URL)) {
-            return ['success' => false, 'message' => 'URL invalide'];
+            // Vérification de l’URL
+            if (!filter_var($url, FILTER_VALIDATE_URL)) {
+                Yii::error("URL invalide soumise : $url", __METHOD__);
+                return ['success' => false, 'message' => 'URL invalide'];
+            }
+
+            // Vérification de l'accessibilité
+            $headers = @get_headers($url);
+            if ($headers === false || strpos($headers[0], '200') === false) {
+                Yii::error("URL inaccessible : $url | Headers: " . json_encode($headers), __METHOD__);
+                return ['success' => false, 'message' => 'Le site est inaccessible'];
+            }
+
+            // Génération code unique
+            do {
+                $code = Yii::$app->security->generateRandomString(6);
+            } while (Url::find()->where(['short_code' => $code])->exists());
+
+            // Sauvegarde URL
+            $model = new Url();
+            $model->original_url = $url;
+            $model->short_code = $code;
+
+            if (!$model->save()) {
+                Yii::error("Échec d'enregistrement de l'URL : " . json_encode($model->errors), __METHOD__);
+                return ['success' => false, 'message' => 'Erreur lors de l’enregistrement'];
+            }
+
+            $shortUrl = Yii::$app->request->hostInfo . Yii::$app->urlManager->createUrl(['site/redirect', 'code' => $code]);
+
+            // QR Code
+            $qrDir = Yii::getAlias('@webroot/qr');
+            if (!is_dir($qrDir)) {
+                mkdir($qrDir, 0777, true);
+            }
+            $qrPath = "$qrDir/{$code}.png";
+
+            try {
+                $builder = new Builder(
+                    writer: new PngWriter(),
+                    writerOptions: [],
+                    validateResult: false,
+                    data: $shortUrl,
+                    encoding: new Encoding('UTF-8'),
+                    errorCorrectionLevel: ErrorCorrectionLevel::High,
+                    size: 300,
+                    margin: 10,
+                    roundBlockSizeMode: RoundBlockSizeMode::Margin,
+                    logoPath: Yii::getAlias('@webroot/assets/bender.png'),
+                    logoResizeToWidth: 50,
+                    logoPunchoutBackground: true,
+                    labelText: 'Scan me',
+                    labelFont: new OpenSans(20),
+                    labelAlignment: LabelAlignment::Center
+                );
+                $result = $builder->build();
+                $result->saveToFile($qrPath);
+            } catch (\Throwable $e) {
+                Yii::error("Erreur QRCode : " . $e->getMessage(), __METHOD__);
+                return ['success' => false, 'message' => 'Erreur lors de la génération du QR code'];
+            }
+
+            $qrUrl = Yii::$app->request->hostInfo . Yii::$app->request->baseUrl . "/qr/{$code}.png";
+
+            return [
+                'success' => true,
+                'short_url' => $shortUrl,
+                'qr_url' => $qrUrl,
+            ];
+        } catch (\Throwable $e) {
+            Yii::error("Exception non capturée : " . $e->getMessage(), __METHOD__);
+            return ['success' => false, 'message' => 'Une erreur inattendue est survenue.'];
         }
-
-        // 2. Vérification de l’accessibilité
-        $headers = @get_headers($url);
-        if ($headers === false || strpos($headers[0], '200') === false) {
-            return ['success' => false, 'message' => 'Le site est inaccessible'];
-        }
-
-        // 3. Générer un code court unique
-        do {
-            $code = Yii::$app->security->generateRandomString(6);
-        } while (Url::find()->where(['short_code' => $code])->exists());
-
-        // 4. Sauvegarder dans la base
-        $model = new Url();
-        $model->original_url = $url;
-        $model->short_code = $code;
-
-        if (!$model->save()) {
-            return ['success' => false, 'message' => 'Erreur lors de l’enregistrement'];
-        }
-
-        // 5. Lien court
-        $shortUrl = Yii::$app->request->hostInfo . Yii::$app->urlManager->createUrl(['site/redirect', 'code' => $code]);
-
-        // 6. Préparation du QR Code
-        $qrDir = Yii::getAlias('@webroot/qr');
-        if (!is_dir($qrDir)) {
-            mkdir($qrDir, 0777, true);
-        }
-        $qrPath = "$qrDir/{$code}.png";
-
-        $builder = new Builder(
-            writer: new PngWriter(),
-            writerOptions: [],
-            validateResult: false,
-            data: $shortUrl, // ici on met bien l'URL courte
-            encoding: new Encoding('UTF-8'),
-            errorCorrectionLevel: ErrorCorrectionLevel::High,
-            size: 300,
-            margin: 10,
-            roundBlockSizeMode: RoundBlockSizeMode::Margin,
-            logoPath: Yii::getAlias('@webroot/assets/bender.png'), // ajuste le chemin si besoin
-            logoResizeToWidth: 50,
-            logoPunchoutBackground: true,
-            labelText: 'Scan me',
-            labelFont: new OpenSans(20),
-            labelAlignment: LabelAlignment::Center
-        );
-
-        $result = $builder->build();
-        $result->saveToFile($qrPath);
-
-        $qrUrl = Yii::$app->request->hostInfo . Yii::$app->request->baseUrl . "/qr/{$code}.png";
-
-        // 7. Réponse JSON
-        return [
-            'success' => true,
-            'short_url' => $shortUrl,
-            'qr_url' => $qrUrl,
-        ];
     }
+
 
 
     public function actionRedirect($code)
