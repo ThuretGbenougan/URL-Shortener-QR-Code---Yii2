@@ -1,12 +1,12 @@
 # 🔗 URL Shortener + QR Code – Yii2 Technical Test
 
-This project is a minimalist web service that allows:
+This web service allows:
 
 - Shortening long URLs
-- Generating a local QR code for each short link
-- Redirecting to the original URL using a short code
-- Tracking clicks (IP + counter)
-- All without any external API call
+- Generating local QR codes
+- Redirecting to the original URL with IP tracking
+- Viewing click statistics
+- Displaying a table of all previously created short links
 
 ---
 
@@ -16,25 +16,26 @@ This project is a minimalist web service that allows:
 - Yii2 Framework (basic template)
 - MySQL / MariaDB
 - jQuery + Bootstrap
-- Local QR Code generation (`endroid/qr-code` version 6.x)
+- `endroid/qr-code` v6.x (local generation)
 
 ---
 
-## ⚙️ Installation & Setup
+## 🚀 Features
 
-### 1. Prerequisites
-
-Make sure you have installed:
-
-- PHP ≥ 8.0
-- Composer ≥ 2.0
-- MySQL or MariaDB
-- Web browser
-- (Optional) Local server like Laragon, XAMPP, etc.
+- URL syntax validation and availability check
+- Short URL + QR code generation
+- Ajax-based, no page reload
+- QR download button
+- Copy short link to clipboard
+- Redirection via `/u/<code>` with IP logging
+- Statistics available at `/stats/<code>`
+- History table of all previously generated links
 
 ---
 
-### 2. Clone the project and install dependencies
+## ⚙️ Installation
+
+### 1. Clone the project
 
 ```bash
 git clone https://github.com/ThuretGbenougan/URL-Shortener-QR-Code---Yii2
@@ -42,21 +43,13 @@ cd URL-Shortener-QR-Code---Yii2
 composer install
 ```
 
----
-
-### 3. Create the database
-
-In your DBMS (phpMyAdmin, console or other):
+### 2. Create and configure the database
 
 ```sql
 CREATE DATABASE shorturl_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
----
-
-### 4. Configure database connection
-
-Edit the file `config/db.php`:
+Update `config/db.php`:
 
 ```php
 return [
@@ -68,82 +61,53 @@ return [
 ];
 ```
 
----
-
-### 5. Apply database migrations
-
-#### ✅ Option A: Use Yii2 migration files
+### 3. Run migrations
 
 ```bash
 php yii migrate
 ```
 
-#### ✅ Option B: Import the provided SQL dump (`schema.sql`)
+### 4. Enable Pretty URLs
 
-```sql
--- Import via phpMyAdmin or database tool
--- or via command line:
-mysql -u root -p shorturl_db < schema.sql
+In `config/web.php`:
+
+```php
+'urlManager' => [
+    'enablePrettyUrl' => true,
+    'showScriptName' => false,
+    'rules' => [
+        'u/<code>' => 'site/redirect',
+        'stats/<code>' => 'site/stats',
+    ],
+],
 ```
 
----
-
-### 6. Run the application
-
-From the root of the project:
-
-```bash
-php yii serve
-```
-
-Then visit:  
-👉 `http://localhost:8080`
+Make sure you have `.htaccess` in `/web` for Apache.
 
 ---
 
-### 7. Test
+## 🧪 Test
 
-1. Open the home page
-2. Enter a valid URL
-3. Click **OK**
-4. You'll see:
-   - A QR code
-   - A shortened link
-   - A "Copy" button
-5. Try visiting the short link `/u/abc123`
-
-All clicks are logged with IP and timestamp.
+- Go to homepage: `http://localhost`
+- Enter a URL → view QR, copy & download buttons
+- Click 📊 Statistics button
+- See a full table of previous links below
 
 ---
 
-## 🗃️ Database Tables
+## 🗃️ Database Structure
 
-### Table `url`
+### `url` table:
 
-| Column         | Type        | Description                     |
-|----------------|-------------|---------------------------------|
-| `id`           | int         | Primary key                     |
-| `original_url` | text        | Original full URL               |
-| `short_code`   | varchar(16) | Unique short code (ex: `abc123`)|
-| `created_at`   | timestamp   | Auto timestamp                  |
-| `clicks`       | int         | Total number of redirects       |
+- `id`, `original_url`, `short_code`, `created_at`, `clicks`
 
-### Table `url_log`
+### `url_log` table:
 
-| Column       | Type      | Description                |
-|--------------|-----------|----------------------------|
-| `id`         | int       | Primary key                |
-| `url_id`     | int       | Foreign key to `url` table |
-| `ip_address` | varchar   | Visitor's IP address       |
-| `visited_at` | timestamp | Time of the click          |
+- `id`, `url_id`, `ip_address`, `visited_at`
 
 ---
 
-## 📂 Additional Notes
+## Notes
 
-- QR codes are saved locally in: `/web/qr/`
-- Yii2 error logs: `/runtime/logs/app.log`
-- Fully local — no external APIs used
-- Responsive UI thanks to Bootstrap
-
----
+- QR codes saved in `/web/qr/`
+- Logs available at `/runtime/logs/app.log`
