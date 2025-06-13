@@ -70,8 +70,10 @@ class SiteController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
+        $urls = Url::find()->orderBy(['created_at' => SORT_DESC])->all();
+        return $this->render('index', ['urls' => $urls]);
     }
+
 
     /**
      * Login action.

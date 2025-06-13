@@ -1,5 +1,9 @@
 <?php
 $this->title = 'Short URL Generator';
+
+use yii\helpers\Url;
+use yii\helpers\Html;
+
 ?>
 
 <div class="container mt-5">
@@ -9,12 +13,35 @@ $this->title = 'Short URL Generator';
         <button class="btn btn-primary" id="shortenBtn">Хорошо</button>
     </div>
     <div id="result" class="mt-4"></div>
+    <?php if (!empty($urls)): ?>
+        <div class="mt-5">
+            <h5>🔗 Ваши предыдущие ссылки</h5>
+            <table class="table table-bordered table-striped mt-3">
+                <thead>
+                    <tr>
+                        <th>Оригинальная ссылка</th>
+                        <th>Короткая ссылка</th>
+                        <th>Клики</th>
+                        <th>Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($urls as $url): ?>
+                        <tr>
+                            <td style="word-break: break-all;"><?= \yii\helpers\Html::a($url->original_url, $url->original_url, ['target' => '_blank']) ?></td>
+                            <td><?= \yii\helpers\Html::a(Url::to(['/u/' . $url->short_code], true), ['/u/' . $url->short_code], ['target' => '_blank']) ?></td>
+                            <td><?= $url->clicks ?></td>
+                            <td><a href="<?= Url::to(['/stats/' . $url->short_code]) ?>" class="btn btn-sm btn-outline-info" target="_blank">📊 Статистика</a></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+
 </div>
 
 <?php
-
-use yii\helpers\Url;
-
 $checkUrl = Url::to(['site/shorten']);
 $js = <<<JS
 $('#shortenBtn').on('click', function() {
