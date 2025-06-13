@@ -4,19 +4,20 @@ namespace app\controllers;
 
 use Yii;
 use app\models\Url;
-use Endroid\QrCode\Builder\Builder;
-use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\Label\LabelAlignment;
-use Endroid\QrCode\Label\Font\OpenSans;
-use Endroid\QrCode\RoundBlockSizeMode;
-use Endroid\QrCode\Writer\PngWriter;
 use yii\web\Response;
+use app\models\UrlLog;
 use yii\web\Controller;
 use app\models\LoginForm;
 use app\models\ContactForm;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Label\Font\OpenSans;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\Label\LabelAlignment;
 
 class SiteController extends Controller
 {
@@ -209,6 +210,7 @@ class SiteController extends Controller
                 'success' => true,
                 'short_url' => $shortUrl,
                 'qr_url' => $qrUrl,
+                'code' => $code,
             ];
         } catch (\Throwable $e) {
             Yii::error("Exception non capturée : " . $e->getMessage(), __METHOD__);
@@ -238,5 +240,21 @@ class SiteController extends Controller
 
         // Rediriger vers l’URL longue
         return $this->redirect($model->original_url);
+    }
+
+    public function actionStats($code)
+    {
+        $url = Url::findOne(['short_code' => $code]);
+
+        if (!$url) {
+            throw new \yii\web\NotFoundHttpException("Ссылка не найдена.");
+        }
+
+        $logs = UrlLog::find()->where(['url_id' => $url->id])->orderBy(['visited_at' => SORT_DESC])->all();
+
+        return $this->render('stats', [
+            'url' => $url,
+            'logs' => $logs,
+        ]);
     }
 }

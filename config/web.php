@@ -47,6 +47,7 @@ $config = [
             'showScriptName' => false,
             'rules' => [
                 'u/<code:\w+>' => 'site/redirect',
+                'stats/<code>' => 'site/stats',
             ],
         ],
 
